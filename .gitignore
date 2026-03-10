@@ -1,0 +1,13 @@
+# R
+.Rhistory
+.Rdata
+.RData
+.Rproj.user
+
+# Output directories
+output/
+manuscript/
+
+# OS files
+.DS_Store
+Thumbs.db
