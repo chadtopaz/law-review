@@ -29,7 +29,7 @@ library(scales)
 library(patchwork)
 
 NCORES <- detectCores() - 1
-FIGURE_DIR <- file.path("manuscript", "figures")
+FIGURE_DIR <- file.path("manuscript", "plos", "figures")
 OUTPUT_DIR <- "output"
 message("Using ", NCORES, " cores for parallel computation.")
 
@@ -45,17 +45,28 @@ TWO_GROUP_FILL <- scale_fill_manual(values = c(
 TWO_GROUP_COLORS <- c("Current System" = "grey25", "Deferred Acceptance" = "grey60")
 TWO_GROUP_SHAPES <- c("Current System" = 16, "Deferred Acceptance" = 17)
 
-# Standard figure dimensions (6.5in = textwidth with 1in margins)
-FIG_W <- 6.5; FIG_H <- 4.5; FIG_DPI <- 300
+# PLOS ONE figure specs: max width 7.5in, max height 8.75in, 300-600 DPI.
+# Typeset text column width is 5.2in; we use that for single-column figures.
+# Output as TIFF with LZW compression; filenames: Fig1.tif, Fig2.tif, etc.
+FIG_W <- 5.2; FIG_H <- 3.6; FIG_DPI <- 300
+FIG_FORMAT <- "tiff"
+FIG_EXT <- ".tif"
 
-FIG_THEME <- theme_bw(base_size = 12) +
-  theme(text = element_text(size = 12),
-        axis.text = element_text(size = 11),
-        axis.title = element_text(size = 12),
-        legend.text = element_text(size = 11),
-        legend.title = element_text(size = 11),
-        plot.title = element_text(size = 13, face = "bold"),
+FIG_THEME <- theme_bw(base_size = 11, base_family = "Arial") +
+  theme(text = element_text(size = 11),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.title = element_text(size = 9),
+        plot.title = element_text(size = 11, face = "bold"),
         panel.grid.minor = element_blank())
+
+# Helper: save a figure as PLOS-compliant TIFF
+save_plos_fig <- function(filename, plot, width = FIG_W, height = FIG_H, dpi = FIG_DPI) {
+  ggsave(filename, plot,
+         device = FIG_FORMAT, width = width, height = height,
+         units = "in", dpi = dpi, compression = "lzw")
+}
 
 set.seed(2026)
 
@@ -1679,10 +1690,9 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
     labs(x = NULL, y = "Mean Match Quality (all-N)") +
     FIG_THEME +
     theme(legend.position = "none",
-          axis.text.x = element_text(angle = 30, hjust = 1, size = 10))
+          axis.text.x = element_text(angle = 30, hjust = 1, size = 9))
 
-  ggsave(file.path(output_dir, "fig3.png"), p1,
-         width = FIG_W, height = FIG_H, dpi = FIG_DPI)
+  save_plos_fig(file.path(output_dir, paste0("Fig3", FIG_EXT)), p1)
 
   # --- Fig 4: Article Quality by Journal Tier (dot plot) ---
   tier_dt$tier_label <- tier_labels[tier_dt$tier]
@@ -1701,8 +1711,7 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
     theme(axis.text.x = element_text(angle = 15, hjust = 1),
           legend.position = "bottom")
 
-  ggsave(file.path(output_dir, "fig4.png"), p2,
-         width = FIG_W, height = FIG_H, dpi = FIG_DPI)
+  save_plos_fig(file.path(output_dir, paste0("Fig4", FIG_EXT)), p2)
 
   # --- Fig 7: Quality Gap vs DA by Tier (dot plot) ---
   gap_mechs <- tier_dt[!mechanism %in% c("Deferred Acceptance",
@@ -1719,17 +1728,18 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
     scale_shape_manual(values = setNames(CB_SHAPES[1:n_gap], unique(gap_mechs$mechanism))) +
     labs(x = "Journal Tier", y = "Quality Gap (vs. DA)",
          colour = NULL, shape = NULL) +
-    guides(colour = guide_legend(nrow = 2, byrow = TRUE),
-           shape  = guide_legend(nrow = 2, byrow = TRUE)) +
+    guides(colour = guide_legend(nrow = 4, byrow = TRUE),
+           shape  = guide_legend(nrow = 4, byrow = TRUE)) +
     FIG_THEME +
     theme(axis.text.x = element_text(angle = 15, hjust = 1),
           legend.position = "bottom",
-          legend.text = element_text(size = 10))
+          legend.text = element_text(size = 8))
 
-  ggsave(file.path(output_dir, "fig7.png"), p3,
-         width = FIG_W, height = FIG_H + 0.3, dpi = FIG_DPI)
+  save_plos_fig(file.path(output_dir, paste0("Fig7", FIG_EXT)), p3,
+                height = FIG_H + 0.3)
 
-  # --- Fig 8: Conditional Prestige-Bias by Quality Quintile (grouped bar) ---
+  # --- Fig 9: Conditional Prestige-Bias by Quality Quintile (grouped bar) ---
+  # (Was fig8 before reordering to match manuscript citation order)
   cpb <- agg_results$cond_prestige_bias
   if (!is.null(cpb) && nrow(cpb) > 0) {
     cpb[, prestige_label := factor(prestige_quartile,
@@ -1755,13 +1765,14 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
             axis.text.x = element_text(size = 9),
             strip.text = element_text(size = 12, face = "bold"))
 
-    ggsave(file.path(output_dir, "fig8.png"), p_cpb,
-           width = FIG_W + 1, height = FIG_H + 0.5, dpi = FIG_DPI)
+    save_plos_fig(file.path(output_dir, paste0("Fig9", FIG_EXT)), p_cpb,
+                  width = 7.5, height = FIG_H + 0.5)
   } else {
     p_cpb <- NULL
   }
 
-  # --- Fig 9: Author Prestige Quartile -> Journal Rank (dot plot) ---
+  # --- Fig 8: Author Prestige Quartile -> Journal Rank (dot plot) ---
+  # (Was fig9 before reordering to match manuscript citation order)
   pq_labels <- c("Q1 (low prestige)", "Q2", "Q3", "Q4 (high prestige)")
   author_dt$pq_label <- pq_labels[author_dt$prestige_quartile]
   author_dt$pq_label <- factor(author_dt$pq_label, levels = pq_labels)
@@ -1778,8 +1789,7 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
     FIG_THEME +
     theme(legend.position = "bottom")
 
-  ggsave(file.path(output_dir, "fig9.png"), p4,
-         width = FIG_W, height = FIG_H, dpi = FIG_DPI)
+  save_plos_fig(file.path(output_dir, paste0("Fig8", FIG_EXT)), p4)
 
   # --- Fig 5: Within-Tier Quality Variance (dot plot) ---
   p5 <- ggplot(tier_dt[mechanism %in% five_mechs],
@@ -1789,17 +1799,17 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
     scale_colour_manual(values = setNames(five_colors, five_mechs)) +
     scale_shape_manual(values = setNames(CB_SHAPES[1:5], five_mechs)) +
     scale_y_continuous(limits = c(0, NA), breaks = seq(0, 0.030, 0.005)) +
-    labs(x = "Journal Tier", y = "Within-Tier Variance in Article Quality",
+    labs(x = "Journal Tier", y = "Within-Tier Variance\nin Article Quality",
          colour = NULL, shape = NULL) +
-    guides(colour = guide_legend(nrow = 2, byrow = TRUE),
-           shape  = guide_legend(nrow = 2, byrow = TRUE)) +
+    guides(colour = guide_legend(nrow = 3, byrow = TRUE),
+           shape  = guide_legend(nrow = 3, byrow = TRUE)) +
     FIG_THEME +
     theme(axis.text.x = element_text(angle = 15, hjust = 1),
           legend.position = "bottom",
-          legend.text = element_text(size = 10))
+          legend.text = element_text(size = 8))
 
-  ggsave(file.path(output_dir, "fig5.png"), p5,
-         width = FIG_W, height = FIG_H + 0.3, dpi = FIG_DPI)
+  save_plos_fig(file.path(output_dir, paste0("Fig5", FIG_EXT)), p5,
+                height = FIG_H + 0.3)
 
   # --- Fig 6: Displacement Rate by Tier (dot plot) ---
   disp_dt <- agg_results$displacement
@@ -1822,15 +1832,15 @@ plot_results <- function(agg_results, output_dir = FIGURE_DIR) {
       scale_shape_manual(values = setNames(CB_SHAPES[1:n_disp], unique(disp_mechs$mechanism))) +
       labs(x = "Journal Tier", y = "Displacement Rate",
            colour = NULL, shape = NULL) +
-      guides(colour = guide_legend(nrow = 2, byrow = TRUE),
-             shape  = guide_legend(nrow = 2, byrow = TRUE)) +
+      guides(colour = guide_legend(nrow = 4, byrow = TRUE),
+             shape  = guide_legend(nrow = 4, byrow = TRUE)) +
       FIG_THEME +
       theme(axis.text.x = element_text(angle = 15, hjust = 1),
             legend.position = "bottom",
-            legend.text = element_text(size = 10))
+            legend.text = element_text(size = 8))
 
-    ggsave(file.path(output_dir, "fig6.png"), p6,
-           width = FIG_W, height = FIG_H + 0.3, dpi = FIG_DPI)
+    save_plos_fig(file.path(output_dir, paste0("Fig6", FIG_EXT)), p6,
+                  height = FIG_H + 0.3)
   } else {
     p6 <- NULL
   }
@@ -2307,12 +2317,12 @@ plot_heatmap_grid <- function(grid_dt) {
 
   # ---- Composite: 3-panel patchwork figure ----
   composite <- (p1 | p2 | p3) +
-    plot_annotation(tag_levels = "A") &
-    theme(plot.tag = element_text(face = "bold", size = 12))
+    plot_annotation(tag_levels = list(c("(A)", "(B)", "(C)"))) &
+    theme(plot.tag = element_text(face = "bold", size = 10))
 
-  ggsave(file.path(FIGURE_DIR, "fig10.png"), composite,
-         width = FIG_W, height = 4.0, dpi = FIG_DPI)
-  message("Saved composite heatmap: ", file.path(FIGURE_DIR, "fig10.png"))
+  save_plos_fig(file.path(FIGURE_DIR, paste0("Fig10", FIG_EXT)), composite,
+                width = 7.5, height = 3.5)
+  message("Saved composite heatmap: ", file.path(FIGURE_DIR, paste0("Fig10", FIG_EXT)))
   plots$composite <- composite
 
   message("All heatmap figures saved.")
@@ -2367,9 +2377,8 @@ run_calibration_figure <- function(p = params, B = 500) {
     labs(x = "Journal Rank", y = "Submissions Received") +
     FIG_THEME
 
-  ggsave(file.path(FIGURE_DIR, "fig1.png"), p1,
-         width = FIG_W, height = FIG_H, dpi = FIG_DPI)
-  message("Saved ", file.path(FIGURE_DIR, "fig1.png"))
+  save_plos_fig(file.path(FIGURE_DIR, paste0("Fig1", FIG_EXT)), p1)
+  message("Saved ", file.path(FIGURE_DIR, paste0("Fig1", FIG_EXT)))
 
   # Save data
   if (!dir.exists(OUTPUT_DIR)) dir.create(OUTPUT_DIR, recursive = TRUE)
@@ -2511,17 +2520,16 @@ run_convergence_check <- function(p = params, ncores = NCORES) {
     scale_colour_manual(values = CB_PALETTE[1:5]) +
     scale_fill_manual(values = CB_PALETTE[1:5]) +
     labs(x = "Number of Replications",
-         y = "DA Welfare Advantage (cumulative mean)",
+         y = "DA Welfare Advantage\n(cumulative mean)",
          colour = NULL, fill = NULL) +
-    guides(colour = guide_legend(nrow = 2, byrow = TRUE),
-           fill   = guide_legend(nrow = 2, byrow = TRUE)) +
+    guides(colour = guide_legend(nrow = 3, byrow = TRUE),
+           fill   = guide_legend(nrow = 3, byrow = TRUE)) +
     FIG_THEME +
     theme(legend.position = "bottom",
-          legend.text = element_text(size = 10))
+          legend.text = element_text(size = 8))
 
-  ggsave(file.path(FIGURE_DIR, "fig2.png"), pconv,
-         width = FIG_W, height = FIG_H, dpi = FIG_DPI)
-  message("  Saved ", file.path(FIGURE_DIR, "fig2.png"))
+  save_plos_fig(file.path(FIGURE_DIR, paste0("Fig2", FIG_EXT)), pconv)
+  message("  Saved ", file.path(FIGURE_DIR, paste0("Fig2", FIG_EXT)))
 
   # --- Save all diagnostics ---
   diag <- list(mcse = mcse_dt, convergence = conv_dt)
@@ -2758,14 +2766,14 @@ if (identical(RUN_PIPELINE, TRUE) || identical(RUN_PIPELINE, "baseline")) {
 
   t_start <- Sys.time()
 
-  # 0. Calibration figure (fig1.png, calibration.rds)
+  # 0. Calibration figure (Fig1.tif, calibration.rds)
   message("\n", strrep("=", 60))
   message("CALIBRATION FIGURE")
   message(strrep("=", 60))
   calibration <- run_calibration_figure()
 
   # 1. Baseline Monte Carlo (produces mc_results_raw.rds, mc_results_aggregated.rds,
-  #    and figures: fig3-fig9)
+  #    and figures: Fig3-Fig9.tif)
   baseline <- main()
 
   if (identical(RUN_PIPELINE, TRUE)) {
@@ -2799,13 +2807,13 @@ if (identical(RUN_PIPELINE, TRUE) || identical(RUN_PIPELINE, "baseline")) {
     robust_tightness <- run_robustness_market_tightness()
 
     # 6. Heatmap grid: slot_scale × aspiration_scale
-    #    Produces heatmap_grid.rds and fig10.png (3-panel patchwork composite)
+    #    Produces heatmap_grid.rds and Fig10.tif (3-panel patchwork composite)
     message("\n", strrep("=", 60))
     message("HEATMAP GRID: slot_scale x aspiration_scale")
     message(strrep("=", 60))
     heatmap <- run_heatmap_grid()
 
-    # 7. Convergence diagnostics (fig2.png, convergence_diagnostics.rds)
+    # 7. Convergence diagnostics (Fig2.tif, convergence_diagnostics.rds)
     #    MCSE table for baseline + convergence plot for representative heatmap cells
     message("\n", strrep("=", 60))
     message("CONVERGENCE DIAGNOSTICS")
