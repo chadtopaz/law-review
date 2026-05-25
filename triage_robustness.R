@@ -5,7 +5,7 @@
 # PONE-D-26-11974. The reviewer notes that real student editors likely
 # desk-reject many submissions on a cursory glance, reserving deep review
 # capacity for promising manuscripts. The current model captures this only
-# partially through quality-dependent review effort (Eq. 2 / compute_review_count);
+# partially through quality-dependent review effort (Eq. 3 / compute_review_count);
 # it lacks an explicit desk-rejection step.
 #
 # This script implements an explicit triage step and reports a focused
