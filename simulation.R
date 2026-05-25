@@ -2746,10 +2746,12 @@ generate_evidence_tables <- function(output_dir = OUTPUT_DIR) {
 
 
 # ==============================================================================
-# FULL PIPELINE EXECUTION
-# Sourcing this file runs everything: baseline Monte Carlo, all sensitivity
-# analyses, robustness checks, and the heatmap grid.
-# All RDS outputs go to output/, all figures to manuscript/figures/.
+# OPTIONAL FULL PIPELINE EXECUTION
+# By default, sourcing this file only loads function definitions and does not
+# run any simulations. To run the full pipeline (baseline Monte Carlo, all
+# sensitivity analyses, robustness checks, and the heatmap grid), set
+# RUN_PIPELINE <- TRUE before sourcing. RDS outputs go to output/ and figures
+# go to the directory in FIGURE_DIR (manuscript/plos/figures/ by default).
 # ==============================================================================
 
 # Set RUN_PIPELINE <- TRUE before sourcing to run the full pipeline.

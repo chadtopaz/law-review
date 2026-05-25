@@ -55,6 +55,8 @@ source("triage_robustness.R")
 source("regenerate_figures.R")
 ```
 
+Note: only `simulation.R` installs missing packages automatically. If you run `regenerate_figures.R` on a clean machine without first sourcing `simulation.R`, install the dependencies manually beforehand: `install.packages(c("data.table","ggplot2","scales","patchwork"))`.
+
 ## Output
 
 Numerical results are written to `output/` as `.rds` files; figures are written to `manuscript/plos/figures/` as PLOS-compliant TIFFs (5.2 in width, 300 dpi, LZW compression). Both directories are created automatically.

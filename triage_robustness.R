@@ -36,7 +36,12 @@
 # public-replication-repo layout (simulation.R at root) so this script
 # works whether run from a clone of the public repo or from the author's
 # full working project.
-if (!exists("RUN_PIPELINE")) RUN_PIPELINE <- FALSE
+#
+# We save and restore the caller's RUN_PIPELINE value to avoid accidentally
+# triggering the full baseline pipeline if the user previously set
+# RUN_PIPELINE <- TRUE in the same R session.
+.prev_run_pipeline <- if (exists("RUN_PIPELINE")) RUN_PIPELINE else NULL
+RUN_PIPELINE <- FALSE
 if (file.exists("simulation.R")) {
   source("simulation.R")
 } else if (file.exists("code/simulation.R")) {
@@ -45,6 +50,12 @@ if (file.exists("simulation.R")) {
   stop("Cannot find simulation.R. Run from the project root or from a ",
        "clone of github.com/chadtopaz/law-review.")
 }
+if (is.null(.prev_run_pipeline)) {
+  rm(RUN_PIPELINE)
+} else {
+  RUN_PIPELINE <- .prev_run_pipeline
+}
+rm(.prev_run_pipeline)
 
 
 # ==============================================================================
