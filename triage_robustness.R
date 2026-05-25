@@ -15,23 +15,36 @@
 # Triage design:
 #   - Triggered once per journal at the start of the simulation (since all
 #     articles arrive on Day 1 under batch submission).
-#   - Each journal screens its entire initial queue at cost ~ 0.05 effort
-#     units per article -- a small fraction of the 0.3-1.0 cost of deep
-#     review. The screening uses the same signal q_hat_ji.
+#   - Each journal screens its entire initial queue at negligible cost that
+#     does not consume the journal's regular review capacity c_j. The
+#     screening uses the same signal q_hat_ji that drives deep review.
 #   - Articles whose signal falls below the journal's TRIAGE_THRESHOLD_PCT
 #     percentile of its queue are removed from that journal's queue
 #     (desk-rejected at THIS journal). They remain in other journals' queues.
-#   - The triage cost is paid from an expanded screening budget, not from c_j.
-#     This follows the referee's framing: "c_j would then be reserved for
-#     the remaining pool."
+#   - This follows the referee's framing: triage is a cheap screening step
+#     and c_j is reserved for the surviving pool. We model the cheap step
+#     as zero-binding-cost rather than as an explicit cost that consumes a
+#     separate budget; under realistic capacity multipliers, an explicit
+#     cost would not bind in any case, so the simplification is innocuous.
 #   - The main simulation loop then proceeds identically to simulate_current.
 #
 # Output: output/triage_robustness.rds
 ################################################################################
 
-# Load core simulation (do not auto-run the full pipeline)
+# Load core simulation (do not auto-run the full pipeline).
+# Look in both the full-project layout (code/simulation.R) and the
+# public-replication-repo layout (simulation.R at root) so this script
+# works whether run from a clone of the public repo or from the author's
+# full working project.
 if (!exists("RUN_PIPELINE")) RUN_PIPELINE <- FALSE
-source("code/simulation.R")
+if (file.exists("simulation.R")) {
+  source("simulation.R")
+} else if (file.exists("code/simulation.R")) {
+  source("code/simulation.R")
+} else {
+  stop("Cannot find simulation.R. Run from the project root or from a ",
+       "clone of github.com/chadtopaz/law-review.")
+}
 
 
 # ==============================================================================
@@ -41,7 +54,6 @@ source("code/simulation.R")
 simulate_current_triage <- function(journals, articles, p,
                                      signal_mat = NULL,
                                      crn = NULL,
-                                     triage_cost = 0.05,
                                      triage_threshold_pct = 0.40) {
   J <- p$J
   N <- p$N
@@ -183,7 +195,7 @@ simulate_current_triage <- function(journals, articles, p,
 # run_monte_carlo() to avoid closure-serialization issues across workers.
 # ==============================================================================
 
-run_triage_one_rep <- function(i, p, triage_cost, triage_threshold_pct) {
+run_triage_one_rep <- function(i, p, triage_threshold_pct) {
   journals <- init_journals(p)
   articles <- init_articles(p)
   signal_mat <- make_signal_matrix(articles, p, journals)
@@ -193,7 +205,6 @@ run_triage_one_rep <- function(i, p, triage_cost, triage_threshold_pct) {
                                    signal_mat = signal_mat, crn = crn)
   res_triage  <- simulate_current_triage(journals, articles, p,
                                           signal_mat = signal_mat, crn = crn,
-                                          triage_cost = triage_cost,
                                           triage_threshold_pct = triage_threshold_pct)
   res_da      <- simulate_da(journals, articles, p, proposer = "journal",
                               signal_mat = signal_mat)
@@ -211,7 +222,6 @@ run_triage_one_rep <- function(i, p, triage_cost, triage_threshold_pct) {
 # ==============================================================================
 
 run_triage_robustness <- function(p = params, n_sims = 500, ncores = NCORES,
-                                   triage_cost = 0.05,
                                    triage_threshold_pct = 0.40) {
   # Force evaluation of all arguments BEFORE any parallel work.
   # Without this, the default value `p = params` is a lazy promise that
@@ -220,17 +230,16 @@ run_triage_robustness <- function(p = params, n_sims = 500, ncores = NCORES,
   force(p)
   force(n_sims)
   force(ncores)
-  force(triage_cost)
   force(triage_threshold_pct)
 
   message("=========================================================")
   message("Triage Robustness Check (Reviewer 1 Major Weakness 1)")
   message("=========================================================")
   message("  n_sims:                ", n_sims)
-  message("  triage_cost/article:   ", triage_cost)
   message("  triage_threshold_pct:  ", triage_threshold_pct,
           "  (reject signals below the ", round(100*triage_threshold_pct),
-          "th percentile of each journal's queue)")
+          "th percentile of each journal's queue;",
+          " screening is negligible-cost and does not consume c_j)")
   message("")
 
   cl <- makeCluster(ncores)
@@ -248,11 +257,11 @@ run_triage_robustness <- function(p = params, n_sims = 500, ncores = NCORES,
   clusterSetRNGStream(cl, iseed = 2026)
 
   t0 <- Sys.time()
-  # Inline anonymous wrapper captures p, triage_cost, triage_threshold_pct
-  # from this scope and passes them explicitly to the global helper.
+  # Inline anonymous wrapper captures p and triage_threshold_pct from
+  # this scope and passes them explicitly to the global helper.
   # This matches the pattern used in simulation.R's run_monte_carlo().
   results <- pblapply(1:n_sims, function(i) {
-    run_triage_one_rep(i, p, triage_cost, triage_threshold_pct)
+    run_triage_one_rep(i, p, triage_threshold_pct)
   }, cl = cl)
   t1 <- Sys.time()
   message("\nMonte Carlo completed in ",
@@ -293,7 +302,6 @@ run_triage_robustness <- function(p = params, n_sims = 500, ncores = NCORES,
   out <- list(
     aggregate            = agg,
     raw                  = results,
-    triage_cost          = triage_cost,
     triage_threshold_pct = triage_threshold_pct,
     n_sims               = n_sims,
     elapsed_minutes      = as.numeric(difftime(t1, t0, units = "mins"))
